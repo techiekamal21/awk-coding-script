@@ -1,0 +1,132 @@
+set val(stop) 10.0;
+# create a ns simulator
+set ns [new Simulator];
+
+#Define the different colors for data flow (for NAM)
+$ns color 1 Blue;
+$ns color 2 Red;
+
+#open the ns trace file
+set tracefile [open p1.tr w];
+$ns trace-all $tracefile;
+
+
+#open the ns nam file
+set namfile [open p1.nam w];
+$ns namtrace-all $namfile;
+
+set n0 [$ns node];
+set n1 [$ns node];
+set n2 [$ns node];
+set n3 [$ns node];
+set n4 [$ns node];
+
+#assign labels to nodes
+$n0 label "TCP-source";
+$n1 label "UDP-source";
+$n2 label "UDP-destination";
+$n3 label "TCP-destination";
+$n4 label "Router";
+
+#assign the shapes to nodes
+$n0 shape "square";
+$n1 shape "square";
+$n2 shape "hexagon";
+$n3 shape "hexagon";
+$n4 shape "circle";
+
+#assign color to nodes
+$n0 color green;
+$n1 color green;
+$n2 color red;
+$n3 color red;
+$n4 color black;
+
+#commands to establish Links between nodes
+$ns duplex-link $n0 $n4 100.0Mb 40ms DropTail;
+$ns queue-limit $n0 $n4 5;
+
+$ns duplex-link $n4 $n3 100.0Mb 40ms DropTail;
+$ns queue-limit $n4 $n3 5;
+
+$ns duplex-link $n1 $n4 100.0Mb 40ms DropTail;
+$ns queue-limit $n1 $n4 5;
+
+$ns duplex-link $n4 $n2 100.0Mb 40ms DropTail;
+$ns queue-limit $n4 $n2 5;
+
+$ns duplex-link-op $n4 $n2 queuePos 0.5;
+$ns duplex-link-op $n4 $n2 queuePos 0.5;
+
+#assigning orientation
+$ns duplex-link-op $n4 $n0 orient left-down;
+$ns duplex-link-op $n1 $n4 orient left-up;
+$ns duplex-link-op $n3 $n4 orient left-down;
+$ns duplex-link-op $n2 $n4 orient right-down;
+
+#attaching agent
+set tcp0 [new Agent/TCP];
+$ns attach-agent $n0 $tcp0;
+
+set sink3 [new Agent/TCPSink];
+$ns attach-agent $n3 $sink3;
+
+$ns connect $tcp0 $sink3;
+
+set udp1 [new Agent/UDP];
+$ns attach-agent $n1 $udp1;
+
+set null2 [new Agent/Null];
+$ns attach-agent $n2 $null2;
+
+$ns connect $udp1 $null2;
+
+$tcp0 set packetsize_ 1000;
+$udp1 set packetsize_ 1000;
+
+#setting flow id's
+$tcp0 set fid_ 1;
+$udp1 set fid_ 2;
+
+#attaching application
+set cbr0 [new Application/Traffic/CBR];
+$cbr0 attach-agent $tcp0;
+
+#configuring cbr0 appication
+$cbr0 set packetsize_ 1000;
+$cbr0 set rate_ 3.0Mb;
+$cbr0 set random_ null;
+
+$ns at 0.01 "$cbr0 start";
+$ns at 0.09 "$cbr0 stop";
+
+#attaching application
+set cbr1 [new Application/Traffic/CBR];
+$cbr1 attach-agent $udp1;
+
+#configuring cbr1 application
+$cbr1 set packetsize_ 1000;
+$cbr1 set rate_ 3.0Mb;
+$cbr1 set random_ null;
+
+$ns at 0.1 "$cbr1 start";
+$ns at 9.0 "$cbr1 stop";
+
+#Definr a finish procedure
+proc finish {} {
+	global ns tracefile namfile;
+	$ns flush-trace;
+	#Close the trace file
+	close $tracefile;
+	#close the nam file 
+	close $namfile;
+	#Execute nam on the trace file
+	exec nam p1.nam;
+	exit 0;
+}
+
+$ns at $val(stop) "finish";
+
+#Run the simulation
+$ns run;
+

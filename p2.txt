@@ -1,0 +1,98 @@
+set val(stop) 25.0; # Time of simulator end
+
+# Create ns object
+set ns [new Simulator]
+
+# Open the ns trace file
+set tracefile [open term3.tr w];
+$ns trace-all $tracefile;
+
+# Open the nam file
+set namfile [open term3.nam w];
+$ns namtrace-all $namfile;
+
+set n0 [$ns node]
+set n1 [$ns node]
+set n2 [$ns node]
+set n3 [$ns node]
+set n4 [$ns node]
+set n5 [$ns node]
+set n6 [$ns node]
+
+# Create lables for nodes
+
+$n0 label "UDP SOURCE";
+$n1 label "ONE";
+$n2 label "TWO";
+$n3 label "THREE";
+$n4 label "FOUR";
+$n5 label "FIVE";
+$n6 label "UDP DESTINATION";
+
+#Give shapes to nodes
+
+$n0 shape hexagon;
+$n1 shape square;
+$n2 shape square;
+$n3 shape square;
+$n4 shape square;
+$n5 shape square;
+$n6 shape hexagon;
+
+# Give colors to nodes
+
+$n0 color red;
+$n1 color blue;
+$n2 color blue;
+$n3 color blue;
+$n4 color blue;
+$n5 color blue;
+$n6 color black;
+
+set lan [ $ns newLan "$n0 $n1 $n2 $n3 $n4 $n5 $n6" 1.0Mb 40ms LL Queue|DropTail Mac|802_3 Channel ];
+
+# Setup 1 UDP connection
+set udp1 [new Agent/UDP];
+$ns attach-agent $n0 $udp1;
+$udp1 set packetSize_ 1000;
+
+set null2 [new Agent/Null];
+$ns attach-agent $n6 $null2;
+
+#Connect source and destination
+$ns connect $udp1 $null2;
+
+# Setup a cbr application over udp connection
+
+set cbr1 [new Application/Traffic/CBR];
+$cbr1 attach-agent $udp1;
+
+#set interval
+$cbr1 set interval_ 0.1;
+
+#Assign flow id
+$ns color 1 red;
+$udp1 set fid_ 1;
+
+$ns at 0.1 "$cbr1 start";
+$ns at 24.9 "$cbr1 stop";
+
+#Define a finish procedure
+
+proc finish {} {
+	global ns tracefile namfile;
+	$ns flush-trace;
+	close $tracefile;
+	close $namfile;
+	exec nam term3.nam &;
+	exit 0;
+}
+$ns at $val(stop) "finish";
+
+$ns run
+	
+
+
+
+
+

@@ -1,0 +1,132 @@
+#Simulation parameters setup			
+set val(chan) Channel/WirelessChannel;		#channel type
+set val(prop) Propagation/TwoRayGround;		#radio propogation model
+set val(netif) Phy/WirelessPhy;			#network interface type
+set val(mac) Mac/802_11;			#mac type
+set val(ifq) CMUPriQueue;			#interface queue type
+set val(ll) LL;					#link layer type
+set val(ant) Antenna/OmniAntenna;		#antenna type
+set val(ifqlen) 50;				#maximum packet in ifq
+set val(nn) 6;					#number of mobile nodes
+set val(rp) DSR;				#routing protocol
+set val(X) 700;					#x dimension of the topography
+set val(Y) 700;					#y dimension of the topogrtaphy
+set val(stop) 60.0;				#simulation time
+
+#create a ns simulator
+set ns [new Simulator]
+
+#Setup topography object
+set topo [new Topography]
+$topo load_flatgrid $val(X) $val(Y)
+
+create-god $val(nn)
+#"God (General Operations Director) is the object that is used to store global information about the state of the environment, #network or nodes that an omniscent observer would have, but that should not be made known to any participant in the simulation." #Currently, God object stores the total number of mobilenodes and a table of shortest number of hops required to reach from one #node to another. The next hop information is normally loaded into god object from movement pattern files, before simulation #begins, since calculating this on the fly during simulation runs can be quite time consuming. 
+
+#open the NS trace file
+set tracefile [open lab6.tr w]
+$ns trace-all $tracefile
+
+#Open the NS nam file
+set namfile [open lab6.nam w]
+$ns namtrace-all $namfile
+$ns namtrace-all-wireless $namfile $val(X) $val(Y)
+
+#create wireless channel
+set chan [new $val(chan)];
+
+$ns node-config -adhocRouting $val(rp) \
+		-llType       $val(ll) \
+		-macType      $val(mac) \
+		-ifqType      $val(ifq) \
+		-ifqLen       $val(ifqlen) \
+		-antType      $val(ant) \
+		-propType     $val(prop) \
+		-phyType      $val(netif) \
+		-channel      $chan \
+		-topoInstance $topo \
+		-agentTrace    ON \
+		-routerTrace   ON \
+		-macTrace      ON \
+		-movementTrace ON 
+
+#create node with initial positions
+set n0 [$ns node]
+$n0 set X_ 150
+$n0 set Y_ 300
+$n0 set Z_ 0.0
+$ns initial_node_pos $n0 20
+
+set n1 [$ns node]
+$n1 set X_ 300
+$n1 set Y_ 500
+$n1 set Z_ 0.0
+$ns initial_node_pos $n1 20
+
+set n2 [$ns node]
+$n2 set X_ 500
+$n2 set Y_ 500
+$n2 set Z_ 0.0
+$ns initial_node_pos $n2 20
+
+set n3 [$ns node]
+$n3 set X_ 300
+$n3 set Y_ 100
+$n3 set Z_ 0.0
+$ns initial_node_pos $n3 20
+
+set n4 [$ns node]
+$n4 set X_ 500
+$n4 set Y_ 100
+$n4 set Z_ 0.0
+$ns initial_node_pos $n4 20
+
+set n5 [$ns node]
+$n5 set X_ 650
+$n5 set Y_ 300
+$n5 set Z_ 0.0
+$ns initial_node_pos $n5 20
+
+set tcp0 [new Agent/TCP]
+$ns attach-agent $n0 $tcp0
+
+set sink5 [new Agent/TCPSink]
+$ns attach-agent $n5 $sink5
+$ns connect $tcp0 $sink5
+$tcp0 set packetSize_ 1500
+
+set ftp0 [new Application/FTP]
+$ftp0 attach-agent $tcp0
+
+$ns at 3.0 "$ftp0 start"
+$ns at 60.0 "$ftp0 stop"
+
+#allow node n3 to move towards node n1 with speed 5m/sec
+$ns at 4.0 "$n3 setdest 300.0 500.0 5.0"
+
+#define a finish function
+proc finish {} {
+		global ns tracefile namfile
+		$ns flush-trace
+		close $tracefile
+		close $namfile
+		exec nam lab6.nam &
+		exec awk -f lab6.awk lab6.tr &;
+		exec xgraph term6.dat -geometry 800*400 -t "Packets received by each 	wireless node" -x "Node Number" -y "Packet Received" &;
+		exit 0
+}
+#Tell nodes when the simulation ends
+for {set i 0} {$i < $val(nn)} {incr i} {
+	$ns at $val(stop) "\$n$i reset"
+}
+$ns at $val(stop) "$ns nam-end-wireless $val(stop)"
+$ns at $val(stop) "finish"
+$ns at $val(stop) "puts \"done\" ; $ns halt"
+$ns run
+		 	
+
+
+
+
+
+ 

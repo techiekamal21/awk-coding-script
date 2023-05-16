@@ -1,0 +1,74 @@
+set val(stop) 5.0;
+set ns [ new Simulator ]
+
+$ns rtproto DV
+
+set tracefd [open term5.tr w]
+$ns trace-all $tracefd
+
+set nf [open term5.nam w]
+$ns namtrace-all $nf
+
+set n0 [$ns node]
+set n1 [$ns node]
+set n2 [$ns node]
+set n3 [$ns node]
+set n4 [$ns node]
+set n5 [$ns node]
+set n6 [$ns node]
+
+$n0 color red
+$n3 color green
+
+$n0 shape hexagon
+$n3 shape hexagon
+
+$ns duplex-link $n0 $n1 1.0Mb 10ms DropTail
+$ns duplex-link $n1 $n2 1.0Mb 10ms DropTail;
+$ns duplex-link $n2 $n3 1.0Mb 10ms DropTail;
+$ns duplex-link $n0 $n6 1.0Mb 10ms DropTail;
+$ns duplex-link $n6 $n5 1.0Mb 10ms DropTail;
+$ns duplex-link $n5 $n4 1.0Mb 10ms DropTail;
+$ns duplex-link $n4 $n3 1.0Mb 10ms DropTail;
+
+$ns duplex-link-op $n0 $n1 orient down-right;
+$ns duplex-link-op $n1 $n2 orient down;
+$ns duplex-link-op $n2 $n3 orient down-left;
+$ns duplex-link-op $n3 $n4 orient up-left;
+$ns duplex-link-op $n4 $n5 orient up;
+$ns duplex-link-op $n5 $n6 orient up;
+$ns duplex-link-op $n0 $n6 orient down-left;
+
+set udp0 [new Agent/UDP]
+$ns attach-agent $n0 $udp0
+
+set null3 [new Agent/Null]
+$ns attach-agent $n3 $null3
+
+$ns connect $udp0 $null3
+
+set cbr0 [new Application/Traffic/CBR]
+$cbr0 set packetSize_ 500
+$cbr0 set interval_ 0.005
+$cbr0 attach-agent $udp0
+
+$ns at 0.1 "$cbr0 start"
+$ns at 10.0 "$cbr0 stop"
+
+$ns rtmodel-at 1.0 down $n1 $n2
+$ns rtmodel-at 2.0 up $n1 $n2
+
+$udp0 set fid_ 1
+$ns color 1 blue
+
+proc finish {} {
+	global ns nf tracefd
+	$ns flush-trace
+	close $nf
+	close $tracefd
+	exec nam term5.nam &
+	exit 0;
+}
+$ns at $val(stop) "finish"
+$ns run
+

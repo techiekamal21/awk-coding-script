@@ -1,0 +1,65 @@
+set val(stop) 50;
+
+set ns [new Simulator];
+
+set tracefile [open d1.tr w];
+$ns trace-all $tracefile;
+
+set namfile [open d1.nam w];
+$ns namtrace-all $namfile;
+
+set n0 [$ns node];
+set n1 [$ns node];
+
+$n0 label "Server";
+$n1 label "Client";
+
+$n0 shape square;
+$n1 shape square;
+
+$n0 color red;
+$n1 color blue;
+
+set tcp0 [new Agent/TCP];
+$ns attach-agent $n0 $tcp0;
+
+set sink3 [new Agent/TCPSink];
+$ns attach-agent $n1 $sink3;
+
+$ns connect $tcp0 $sink3;
+$tcp0 set packetSize_ 1500; 
+
+set ftp0 [new Application/FTP];
+$ftp0 attach-agent $tcp0;
+
+$ns at 0.01 "$ftp0 start";
+$ns at 20.2 "$ftp0 stop";
+
+$ns duplex-link $n0 $n1 100.0Mb 40ms DropTail;
+$ns queue-limit $n0 $n1 5;
+
+$ns duplex-link-op $n0 $n1 orient right;
+
+$ns color 1 red;
+$tcp0 set fid_ 1;
+
+$ftp0 set type_ FTP;
+
+proc finish {} {
+	global ns tracefile namfile
+	$ns flush-trace
+	close $tracefile
+	close $namfile
+	exec nam d1.nam &
+	exec awk -f first.awk d1.tr &
+	exec awk -f graph.awk d1.tr > d1.dat &
+	exec xgraph d1.dat -geometry 800*400 -t "Bytes_Recieved_at_client" -x "Times_is_secs" -y "Bytes_in_bps" &
+	exit 0;
+}
+$ns at $val(stop) "finish"
+
+$ns run;
+
+
+
+
